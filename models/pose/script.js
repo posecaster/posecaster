@@ -52,7 +52,11 @@ function connectws() {
   };
 }
 
-connectws();
+// out=postmessage mode (see ../shared/common.js) has no local websocket
+// server to speak of — skip the connect attempt entirely rather than retry
+// forever in the background. Standalone/default behavior (outputMode unset)
+// is completely unchanged.
+if ( ! outputMode ) connectws();
 
 
 var osc = new OSC({
@@ -61,6 +65,7 @@ var osc = new OSC({
 osc.open();
 
 function sendToMaxPatch(ms) {
+    postLandmarksIfEnabled(ms);
     if (wsconnect) {
         m = JSON.parse(JSON.stringify(ms));
         if(!modelSettings.sendImage && m.image) {
