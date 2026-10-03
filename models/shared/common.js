@@ -27,6 +27,9 @@ function parseOutputMode() {
 }
 var outputMode = parseOutputMode();
 
+// #embed=true hides the settings GUI and fps counter, leaving only video + model overlay.
+var embedMode = new URLSearchParams( ( window.location.hash || '' ).replace( /^#/, '' ) ).get( 'embed' ) === 'true';
+
 // Standard 33-point BlazePose topology name map, from @mediapipe/pose's own
 // POSE_LANDMARKS export (already loaded by every model page that has pose
 // landmarks at all) — inverted once so each landmark in the posted frame
@@ -82,7 +85,7 @@ function postLandmarksIfEnabled( results ) {
 
 }
 
-javascript: (function () { var script = document.createElement('script'); script.onload = function () { var stats = new Stats(); document.body.appendChild(stats.dom); requestAnimationFrame(function loop() { stats.update(); requestAnimationFrame(loop) }); }; script.src = 'https://mrdoob.github.io/stats.js/build/stats.min.js'; document.head.appendChild(script); })()
+if (!embedMode) (function () { var script = document.createElement('script'); script.onload = function () { var stats = new Stats(); document.body.appendChild(stats.dom); requestAnimationFrame(function loop() { stats.update(); requestAnimationFrame(loop) }); }; script.src = 'https://mrdoob.github.io/stats.js/build/stats.min.js'; document.head.appendChild(script); })();
 
 function getXMLHTTPRequest() {
     var request;
@@ -288,6 +291,7 @@ modelFolder.open();
 netFolder.open();
 settFolder.open();
 misc.open();
+if (embedMode) gui.hide();
 //gui.close();
 
 function updateModel() {

@@ -40,14 +40,31 @@
 
 <body style='overflow:hidden;height:100vh;width:100vw;background:black'>
     <iframe id='iframe' style='position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;'
-        allow='autoplay; camera; microphone' src='./models/pose/index.html' onload="onModelLoad()"></iframe>
+        allow='autoplay; camera; microphone' onload="onModelLoad()"></iframe>
 
     <video height=0 width=0 style='display' id="video" autoplay muted playsinline></video>
 </body>
 
 <script>
 
-    if (window.chrome) {
+    var MODELS = ['pose', 'hands', 'face', 'facemesh', 'holistic'];
+
+    function hashParams() {
+        return new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    }
+
+    // Loads models/<model>/ from #model=...; the full hash is forwarded so the model page sees embed/out/target.
+    function loadModelFromHash() {
+        var model = hashParams().get('model');
+        if (MODELS.indexOf(model) === -1) model = 'pose';
+        document.getElementById('iframe').src = './models/' + model + '/index.html' + window.location.hash;
+    }
+
+    var embed = hashParams().get('embed') === 'true';
+    loadModelFromHash();
+    window.addEventListener('hashchange', loadModelFromHash);
+
+    if (window.chrome && !embed) {
         M.toast({
             html: 'Welcome to PoseCaster! <br>Click anywhere on the video to enable background picture-in-picture feature.',
             displayLength: 10000,
