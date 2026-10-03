@@ -70,7 +70,29 @@ function toLandmarkFrame( results ) {
 
 	}
 
+	// facemesh model: results.multiFaceLandmarks (one landmark-array per
+	// detected face, no visibility/score per-point) — first face only, same
+	// as every other single-subject field here.
 	if ( results.faceLandmarks ) frame.face = namedLandmarks( results.faceLandmarks, 'face' );
+	else if ( results.multiFaceLandmarks && results.multiFaceLandmarks[ 0 ] ) frame.face = namedLandmarks( results.multiFaceLandmarks[ 0 ], 'face' );
+
+	// face model (short-range MediaPipe FaceDetection): results.detections[0]
+	// — 6 named keypoints, no z, plus a synthetic `faceCenter` from the
+	// detection's own bounding box (the simplest single-point "where is the
+	// face" signal for driving e.g. a paddle).
+	if ( results.detections && results.detections[ 0 ] ) {
+
+		const d = results.detections[ 0 ];
+		const names = [ 'rightEye', 'leftEye', 'noseTip', 'mouthCenter', 'rightEarTragion', 'leftEarTragion' ];
+		const score = ( d.score && d.score[ 0 ] ) != null ? d.score[ 0 ] : 1;
+		frame.face = ( d.landmarks || [] ).map( function ( lm, i ) {
+
+			return { name: 'face_' + ( names[ i ] || i ), x: lm.x, y: lm.y, z: 0, score: score };
+
+		} );
+		if ( d.boundingBox ) frame.face.push( { name: 'face_faceCenter', x: d.boundingBox.xCenter, y: d.boundingBox.yCenter, z: 0, score: score } );
+
+	}
 
 	return frame;
 
