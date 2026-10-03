@@ -2,6 +2,86 @@ var theModel;
 var inputSize = 100;
 var camera;
 
+// ── out=postmessage mode (additive, back-compatible) ────────────────────────
+// Default output stays the existing websocket/OSC path in each model's own
+// script.js, completely untouched. This only activates when the URL
+// explicitly asks for it via #out=postmessage&target=<origin> (hash or query,
+// either works). `target` is a REQUIRED, explicit origin — never posts with
+// "*", and does nothing at all (fails closed) if target is missing or
+// malformed, so a copy-pasted/forgotten link can't silently broadcast
+// landmarks to whatever origin happens to embed it.
+function parseOutputMode() {
+
+	const hash = ( window.location.hash || '' ).replace( /^#/, '' );
+	const search = ( window.location.search || '' ).replace( /^\?/, '' );
+	const params = new URLSearchParams( hash + ( hash && search ? '&' : '' ) + search );
+
+	if ( params.get( 'out' ) !== 'postmessage' ) return null;
+
+	const target = params.get( 'target' );
+	if ( ! target ) return null;
+	try { new URL( target ); } catch { return null; } // malformed — fail closed, never fall back to "*"
+
+	return { target };
+
+}
+var outputMode = parseOutputMode();
+
+// Standard 33-point BlazePose topology name map, from @mediapipe/pose's own
+// POSE_LANDMARKS export (already loaded by every model page that has pose
+// landmarks at all) — inverted once so each landmark in the posted frame
+// carries a stable `name`, not just an array position a consumer has to
+// already know the convention for.
+function poseLandmarkNames() {
+
+	if ( typeof POSE_LANDMARKS === 'undefined' ) return [];
+	const names = [];
+	for ( const key in POSE_LANDMARKS ) names[ POSE_LANDMARKS[ key ] ] = key;
+	return names;
+
+}
+
+function namedLandmarks( list, prefix, names ) {
+
+	return ( list || [] ).map( function ( lm, i ) {
+
+		return { name: ( names && names[ i ] ) || ( prefix + '_' + i ), x: lm.x, y: lm.y, z: lm.z, score: lm.visibility != null ? lm.visibility : 1 };
+
+	} );
+
+}
+
+// {t, pose:[{name,x,y,z,score}], hands?, face?} — small, stable,
+// JSON-serializable, no blobs/image data ever (results.image is never even
+// read here).
+function toLandmarkFrame( results ) {
+
+	const frame = { t: Date.now(), pose: namedLandmarks( results.poseLandmarks, 'pose', poseLandmarkNames() ) };
+
+	if ( results.leftHandLandmarks || results.rightHandLandmarks ) {
+
+		frame.hands = {
+			left: namedLandmarks( results.leftHandLandmarks, 'hand' ),
+			right: namedLandmarks( results.rightHandLandmarks, 'hand' ),
+		};
+
+	}
+
+	if ( results.faceLandmarks ) frame.face = namedLandmarks( results.faceLandmarks, 'face' );
+
+	return frame;
+
+}
+
+// The one line a model's own script.js adds to its existing send function —
+// inert when outputMode isn't active, never touches the websocket/OSC path.
+function postLandmarksIfEnabled( results ) {
+
+	if ( ! outputMode ) return;
+	window.parent.postMessage( { type: 'posecaster:landmarks', frame: toLandmarkFrame( results ) }, outputMode.target );
+
+}
+
 javascript: (function () { var script = document.createElement('script'); script.onload = function () { var stats = new Stats(); document.body.appendChild(stats.dom); requestAnimationFrame(function loop() { stats.update(); requestAnimationFrame(loop) }); }; script.src = 'https://mrdoob.github.io/stats.js/build/stats.min.js'; document.head.appendChild(script); })()
 
 function getXMLHTTPRequest() {
