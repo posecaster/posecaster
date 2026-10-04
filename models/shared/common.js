@@ -100,10 +100,17 @@ function toLandmarkFrame( results ) {
 
 // The one line a model's own script.js adds to its existing send function —
 // inert when outputMode isn't active, never touches the websocket/OSC path.
+// `window.top`, not `window.parent`: the top-level index.html's own
+// `#model=` routing (added later) wraps this page in ANOTHER iframe of its
+// own, so `window.parent` from here is posecaster's own wrapper, not
+// whichever page actually embedded posecaster — `window.top` is always the
+// outermost window regardless of how many posecaster-internal frames sit in
+// between, and is exactly as safe to post cross-origin (postMessage checks
+// the target origin string either way, never the window reference itself).
 function postLandmarksIfEnabled( results ) {
 
 	if ( ! outputMode ) return;
-	window.parent.postMessage( { type: 'posecaster:landmarks', frame: toLandmarkFrame( results ) }, outputMode.target );
+	window.top.postMessage( { type: 'posecaster:landmarks', frame: toLandmarkFrame( results ) }, outputMode.target );
 
 }
 
